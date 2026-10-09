@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""pomodoro CLI.
+
+  pomodoro                      toggle the popup window (starts the daemon if needed)
+  pomodoro show|hide|toggle|daemon|quit
+  pomodoro -tag                 hours for every tag: week / month / year
+  pomodoro -tag week|month|year hours for every tag in that period
+  pomodoro -tag NAME [PERIOD]   one tag (all three periods, or just PERIOD)
+"""
+import os
+import sys
+
+APP_DIR = os.path.expanduser("~/.local/share/pomodoro")
+sys.path.insert(0, APP_DIR)
+
+PERIODS = ("week", "month", "year")
+B, D, R, C = "\033[1m", "\033[2m", "\033[0m", "\033[36m"
+
+
+def bar(seconds, peak, width=24):
+    if not peak:
+        return ""
+    return "█" * max(1, round(width * seconds / peak)) if seconds else ""
+
+
+def stats(args):
+    import store
+
+    if not sys.stdout.isatty():
+        global B, D, R, C
+        B = D = R = C = ""
+
+    name, period = None, None
+    for a in args:
+        if a.lower() in PERIODS and period is None:
+            period = a.lower()
+        elif name is None:
+            name = a
+        else:
+            sys.exit("usage: pomodoro -tag [NAME] [week|month|year]")
+
+    tags = store.list_tags()
+    if name:
+        match = [t for t in tags if t.lower() == name.lower()]
+        if not match:
+            sys.exit(f"no tag '{name}'. tags: {', '.join(tags)}")
+        tags = match
+
+    periods = (period,) if period else PERIODS
+    data = {t: store.totals(t) for t in tags}
+    width = max(len(t) for t in tags)
+
+    print(f"{D}{'':{width}}  " + "  ".join(f"{p:>12}" for p in periods) + R)
+    for t in tags:
+        cells = []
+        for p in periods:
+            secs, n = data[t][p]
+            cells.append(f"{store.fmt_hm(secs):>7} {D}({n:>2}){R}" if n else f"{D}{'—':>12}{R}")
+        print(f"{B}{t:{width}}{R}  " + "  ".join(cells))
+
+    if len(tags) > 1:
+        print(f"{D}{'─' * (width + 14 * len(periods))}{R}")
+        tot = [store.fmt_hm(sum(data[t][p][0] for t in tags)) for p in periods]
+        print(f"{B}{'total':{width}}{R}  " + "  ".join(f"{x:>7}     " for x in tot))
+
+    # single tag + single period (or the week default): per-day breakdown
+    if len(tags) == 1 and period in ("week", None):
+        from datetime import date, timedelta
+        monday = store.period_start("week")
+        days = store.by_day(tags[0], monday)
+        peak = max(days.values(), default=0)
+        print()
+        for i in range(7):
+            d = monday.date() + timedelta(days=i)
+            if d > date.today():
+                break
+            s = days.get(d, 0)
+            print(f"{D}{d:%a %d}{R}  {C}{bar(s, peak):<24}{R} {store.fmt_hm(s) if s else ''}")
+
+
+def main():
+    argv = sys.argv[1:]
+    if argv and argv[0] in ("-tag", "--tag", "tag"):
+        return stats(argv[1:])
+    if argv and argv[0] in ("-h", "--help", "help"):
+        return print(__doc__)
+    cmd = argv[0] if argv else "toggle"
+    if cmd not in ("toggle", "show", "hide", "daemon", "quit"):
+        sys.exit(f"unknown command '{cmd}'\n{__doc__}")
+    os.execvp("python3", ["python3", os.path.join(APP_DIR, "app.py"), cmd])
+
+
+if __name__ == "__main__":
+    main()
