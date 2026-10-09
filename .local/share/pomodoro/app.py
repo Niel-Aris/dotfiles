@@ -6,6 +6,7 @@ closing the window only hides it, the timer keeps running in the background.
 """
 import math
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -25,14 +26,71 @@ import store  # noqa: E402
 APP_ID = "org.lynx.Pomodoro"
 SOUND = "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
 
-CSS = b"""
-.time-label { font-size: 54px; font-weight: 200; font-feature-settings: "tnum"; }
-.phase-label { font-size: 11px; font-weight: 700; letter-spacing: 2px; opacity: .65; }
-.dots { letter-spacing: 5px; opacity: .85; }
-.msg { opacity: .8; }
-.stat-value { font-size: 15px; font-weight: 700; }
-.stat-cap { font-size: 9px; font-weight: 700; letter-spacing: 1.5px; opacity: .55; }
-.stat-card { padding: 10px 4px; }
+SCHEME = os.path.expanduser("~/.config/hypr/scheme/current.lua")
+FALLBACK = {"primary": "a0cddf", "onPrimary": "144655", "tertiary": "c9daff", "error": "fa746f"}
+
+
+def load_palette():
+    """Accent colours follow the Caelestia scheme; surfaces stay a fixed dark grey."""
+    pal = dict(FALLBACK)
+    try:
+        with open(SCHEME) as f:
+            for k, v in re.findall(r'(\w+)\s*=\s*"([0-9a-fA-F]{6})"', f.read()):
+                if k in pal:
+                    pal[k] = v
+    except OSError:
+        pass
+    return pal
+
+
+def rgb(hexstr):
+    return tuple(int(hexstr[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def build_css(p):
+    return f"""
+@define-color accent_bg_color #{p['primary']};
+@define-color accent_color #{p['primary']};
+@define-color accent_fg_color #{p['onPrimary']};
+@define-color window_bg_color rgba(28, 30, 38, 0.91);
+@define-color window_fg_color #e4e7ee;
+@define-color headerbar_bg_color transparent;
+@define-color headerbar_shade_color transparent;
+@define-color card_bg_color rgba(255, 255, 255, 0.055);
+@define-color view_bg_color rgba(255, 255, 255, 0.04);
+@define-color dialog_bg_color #23252d;
+@define-color popover_bg_color #2a2c35;
+
+window.background {{ background-color: rgba(28, 30, 38, 0.91); }}
+headerbar {{ background: transparent; box-shadow: none; border: none; }}
+headerbar button {{ background: transparent; }}
+headerbar button:hover, headerbar button:checked {{ background: alpha(white, .09); }}
+
+dropdown > button, entry {{
+  background: alpha(white, .06); border: 1px solid alpha(white, .05);
+  border-radius: 12px; box-shadow: none; min-height: 38px;
+}}
+dropdown > button:hover {{ background: alpha(white, .10); }}
+button.circular {{ background: alpha(white, .06); border: 1px solid alpha(white, .05); }}
+button.circular:hover {{ background: alpha(white, .12); }}
+
+button.pill {{
+  background: alpha(white, .08); border: none; box-shadow: none;
+  border-radius: 999px; padding: 9px 22px; font-weight: 600;
+}}
+button.pill:hover {{ background: alpha(white, .14); }}
+button.pill.suggested-action {{ background: #{p['primary']}; color: #{p['onPrimary']}; }}
+button.pill.suggested-action:hover {{ background: shade(#{p['primary']}, 1.08); }}
+
+.card {{ border-radius: 16px; border: 1px solid alpha(white, .05); box-shadow: none; }}
+.time-label {{ font-size: 56px; font-weight: 200; font-feature-settings: "tnum"; color: #f1f3f8; }}
+.phase-label {{ font-size: 11px; font-weight: 700; letter-spacing: 3px; color: #{p['primary']}; }}
+.dots {{ letter-spacing: 6px; color: #{p['primary']}; opacity: .8; }}
+.msg {{ opacity: .7; }}
+.stat-value {{ font-size: 15px; font-weight: 700; color: #f1f3f8; }}
+.stat-cap {{ font-size: 9px; font-weight: 700; letter-spacing: 1.5px; opacity: .5; }}
+.stat-card {{ padding: 12px 4px; }}
+preferencesgroup > box > box > list, .boxed-list {{ border-radius: 16px; border: 1px solid alpha(white, .05); }}
 """
 
 
@@ -131,6 +189,7 @@ class Engine:
 class PomodoroWindow(Adw.ApplicationWindow):
     def __init__(self, app, engine):
         super().__init__(application=app, title="Pomodoro", resizable=False)
+        self.app = app
         self.set_default_size(360, 600)
         self.engine = engine
         self.cfg = engine.cfg
@@ -302,22 +361,27 @@ class PomodoroWindow(Adw.ApplicationWindow):
     # -- drawing
     def _draw_ring(self, _area, cr, w, h):
         e = self.engine
-        fg = self.get_color()
-        accent = Adw.StyleManager.get_default().get_accent_color_rgba()
-        color = (0.35, 0.78, 0.52) if e.phase == "break" else (accent.red, accent.green, accent.blue)
-        cx, cy, r, lw = w / 2, h / 2, min(w, h) / 2 - 12, 12
-        cr.set_line_width(lw)
+        pal = self.app.palette
+        color = rgb(pal["tertiary"] if e.phase == "break" else pal["primary"])
+        cx, cy, r, lw = w / 2, h / 2, min(w, h) / 2 - 14, 10
         cr.set_line_cap(1)  # round
-        cr.set_source_rgba(fg.red, fg.green, fg.blue, 0.12)
+        cr.set_line_width(lw)
+        cr.set_source_rgba(1, 1, 1, 0.07)
         cr.arc(cx, cy, r, 0, 2 * math.pi)
         cr.stroke()
         if e.phase != "idle" and e.planned > 0:
             frac = e.left() / e.planned
             if frac > 0:
-                a = 0.45 if (e.phase != "idle" and not e.running and not e.finished) else 1.0
+                a = 0.5 if (not e.running and not e.finished) else 1.0
+                start, stop = -math.pi / 2, -math.pi / 2 + 2 * math.pi * frac
+                for width, alpha in ((lw + 12, 0.06), (lw + 6, 0.10)):  # soft glow
+                    cr.set_line_width(width)
+                    cr.set_source_rgba(*color, alpha * a)
+                    cr.arc(cx, cy, r, start, stop)
+                    cr.stroke()
+                cr.set_line_width(lw)
                 cr.set_source_rgba(*color, a)
-                start = -math.pi / 2
-                cr.arc(cx, cy, r, start, start + 2 * math.pi * frac)
+                cr.arc(cx, cy, r, start, stop)
                 cr.stroke()
 
     # -- state -> widgets
@@ -406,12 +470,15 @@ class PomodoroApp(Adw.Application):
         super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.win = None
         self.engine = None
+        self.palette = dict(FALLBACK)
 
     def do_startup(self):
         Adw.Application.do_startup(self)
         self.hold()  # keep running with no visible window
         provider = Gtk.CssProvider()
-        provider.load_from_data(CSS)
+        self.palette = load_palette()
+        Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_DARK)
+        provider.load_from_string(build_css(self.palette))
         Gtk.StyleContext.add_provider_for_display(Gdk.Display.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
         self.engine = Engine(store.load_config(), lambda: self.win and self.win.refresh(), self._on_finish)
         self.win = PomodoroWindow(self, self.engine)
