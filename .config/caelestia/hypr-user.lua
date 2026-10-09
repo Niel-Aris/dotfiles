@@ -13,3 +13,22 @@ hl.window_rule({ match = { class = "org.lynx.Pomodoro" }, float = true, center =
 hl.on("hyprland.start", function()
     hl.exec_cmd("pomodoro daemon")
 end)
+
+-- Mouse side buttons step through Zen tabs (Ctrl+PgUp / Ctrl+PgDn).
+-- Up button (mouse:276, forward) = previous tab, down button (mouse:275, back) = next tab.
+-- Outside Zen the button is passed through to the focused window unchanged.
+local function zen_tab_button(button, key)
+    hl.bind(button, function()
+        local win = hl.get_active_window()
+        if not win then return end
+
+        if win.class == "zen" then
+            hl.dispatch(hl.dsp.send_shortcut({ mods = "CTRL", key = key, window = "address:" .. win.address }))
+        else
+            hl.dispatch(hl.dsp.pass({ window = "address:" .. win.address }))
+        end
+    end, { mouse = true })
+end
+
+zen_tab_button("mouse:276", "Page_Up")
+zen_tab_button("mouse:275", "Page_Down")
