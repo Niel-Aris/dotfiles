@@ -22,6 +22,9 @@
         "cards": {
             "keepAwake": true
         },
-        "enabled": true
+        "enabled": true,
+        "toasts": {
+            "capsLockChanged": false
+        }
     }
 }
