@@ -151,3 +151,7 @@ inoremap <expr> <CR>    pumvisible() ? "\<C-y>" : "\<CR>"
 
 " ---------- Which-key ----------
 nnoremap <silent> <leader> :WhichKey '<Space>'<CR>
+
+" ---------- Cheatsheet ----------
+command! Cheat split ~/.vim/cheatsheet.md | setlocal readonly nomodifiable nonumber norelativenumber nolist foldmethod=expr foldexpr=getline(v:lnum)=~'^##'?'>1':'=' | nnoremap <buffer> q :close<CR>
+nnoremap <leader>? :Cheat<CR>

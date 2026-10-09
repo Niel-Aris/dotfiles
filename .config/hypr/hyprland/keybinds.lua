@@ -163,6 +163,12 @@ create_bind(vars.kbEditor, hl.dsp.exec_cmd(vars.editor))
 create_bind(vars.kbFileExplorer, hl.dsp.exec_cmd(vars.fileExplorer))
 create_bind(vars.kbAudioSettings, hl.dsp.exec_cmd(vars.audioSettings))
 
+-- Vim cheatsheet (floating terminal, press q to close)
+create_bind(
+    "SUPER + slash",
+    hl.dsp.exec_cmd("foot --app-id=vim-cheatsheet --title='Vim Cheatsheet' vim -R -c 'set ft=markdown nonumber norelativenumber nolist' -c 'nnoremap <buffer> q :qa!<CR>' ~/.vim/cheatsheet.md")
+)
+
 -- Utilities
 create_bind(vars.kbScreenshot, hl.dsp.exec_cmd("caelestia screenshot"), locked)
 create_bind(vars.kbScreenshotFreeze, hl.dsp.global("caelestia:screenshotFreeze"))

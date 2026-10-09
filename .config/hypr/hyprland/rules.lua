@@ -45,6 +45,9 @@ hl.window_rule({ match = { fullscreen = false }, opacity = vars.windowOpacity ..
 -- Center all floating windows except xwayland windows (xwayland popups count as windows)
 hl.window_rule({ match = { float = true, xwayland = false }, center = true })
 
+-- Vim cheatsheet popup
+hl.window_rule({ match = { class = "vim-cheatsheet" }, float = true, size = "(monitor_w*0.7) (monitor_h*0.8)", center = true })
+
 -- Picture in picture (move and resize done via resizer in execs.lua)
 hl.window_rule({
     match             = { title = "Picture(-| )in(-| )[Pp]icture" },
