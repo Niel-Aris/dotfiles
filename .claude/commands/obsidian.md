@@ -1,6 +1,6 @@
 ---
-description: Obsidian vault: sync (push/pull), edit a note, rewrite a note, or index its concepts
-argument-hint: push | pull | <file-or-folder> [rewrite | index | <instruction>]
+description: Obsidian vault: sync (push/pull), edit a note, rewrite a note, index its concepts, or review a finished day
+argument-hint: push | pull | <file-or-folder> [rewrite | index | review | <instruction>]
 ---
 
 The vault is at ~/Documents/Lynux-System on every machine. Its git remote is github.com/Niel-Aris/obsidian-vault (private). Ignore `.obsidian/` unless a mode says otherwise.
@@ -13,6 +13,7 @@ Arguments: $ARGUMENTS
 - Otherwise the first token (or quoted string) is the target. Everything after it is the mode:
   - exactly `rewrite`: Rewrite mode
   - exactly `index`: Index mode
+  - exactly `review`: Review mode
   - anything else: Edit mode, which follows the instruction literally
 - If the target or mode is missing, ask for it and stop.
 
@@ -28,7 +29,7 @@ Arguments: $ARGUMENTS
 
 1. Check whether the exact path exists under the vault root. A `.md` extension is optional.
 2. If not, search by name, case-insensitive, ignoring `.obsidian/`. One match: use it. Several: ask which one. None: if the mode creates content, create the file, adding `.md` if there's no extension. Otherwise ask.
-3. If the target is a folder, apply the mode to each `.md` file in it and report one summary.
+3. If the target is a folder, apply the mode to each `.md` file in it and report one summary. Review mode is the exception: its target is a day folder, and it reads that folder's two files (see Review mode).
 
 ## Safety (all modes except push and pull)
 
@@ -60,7 +61,7 @@ Goal: turn the note into clean, readable, less informal writing. This is more th
 - Don't add facts, examples, conclusions, or explanations the user didn't write.
 - Tone: plain and less informal. Replace casual phrasing (slang, shorthand, "a couple times", and similar) with neutral wording, but keep the language simple and everyday.
 - Technical language: use it only where the user already used it, and keep the term exactly as written (for example `%zu format identifier`, `do while`). Don't introduce technical terms or make the note more technical than it is.
-- Keep every fact, example, and question from the original. Keep the section names unless they're unclear.
+- Keep every fact, example, and question from the original. Keep the section names unless they're unclear. Leave the `## Review` section unchanged.
 - Leave frontmatter, `[[links]]`, `#tags`, code blocks, and images alone, except to fix obvious typos in prose.
 - Fix spelling, grammar, and punctuation as part of the rewrite.
 - Report the changes grouped by type (structure, wording, spelling, merged lines, extended lines).
@@ -83,6 +84,27 @@ Goal: link the note's concepts to one definition per concept, and keep the index
 6. In the note, link the first mention of each concept as `[[Canonical Term|the words as written]]`. Don't change the wording.
 7. Tags. Frontmatter `tags` for concept notes: `concept` plus area tags such as `memory`, `cloud`, `networking`, `binary`, `c`, `vm`, `os`. For learning notes, add `learning`, `project/<name>`, and `day/<n>` if they're missing.
 8. Report: concepts linked, new concepts created, aliases added, and anything skipped with the reason.
+
+## Review mode
+
+Goal: after a day is finished, write a review of that day into the `## Review` section of its `What I learned.md`: what was asked, what was done, mistakes and code problems, what to change before the next day, and whether this day is a good base for the next day. The review is for the user to learn from. Point at the problem and the line, and say what to change. Don't write replacement code.
+
+Target: a day folder (`Learning-C/<project>/Day N`) or its `What I learned.md`. Read both `Instructions.md` and `What I learned.md` in that folder. Never edit the project's code.
+
+1. Read `Instructions.md`. Its frontmatter `source` is where the code is. If it's a file, that file is the code, and its directory is the project repo. If it's a directory, that's the project. Read the Approach, Deliverable, and Stretch sections.
+2. Read the code. If the project directory is a git repo, run `git -C <repo> status --short` and `git -C <repo> log --oneline -5 -- <path>`, and read `git diff` for uncommitted changes. Projects may have no per-day commits, so review the current code and say which history you used. If the source is missing or has no code yet, say so and review against the instructions only.
+3. Read the day's `What I learned.md`: what the user says they learned, what broke, and their questions.
+4. Check the work against the instructions. Mark each Approach, Deliverable, and Stretch item as done, partial, or missing. For mistakes and code problems, give the file and line, and say why it matters (for example, an unchecked return value, a leak, undefined behaviour, a missing `free`). Note any question from the notes that the code doesn't answer.
+5. Next day: if `Day N+1/Instructions.md` exists, read it and say what this day's code is missing or gets wrong for it. If there is no next day, say so.
+6. Write the review into `## Review` in `What I learned.md`, replacing the placeholder, in this order:
+   - **Asked vs done:** the instruction items with done / partial / missing.
+   - **Mistakes:** each with file:line and why it matters.
+   - **Code problems:** each with file:line, what to change, and why. Most severe first.
+   - **Before Day N+1:** a numbered list of the changes that must be made first.
+   - **Base for next day:** Ready, Ready with the changes above, or Not ready, with one or two sentences of reason.
+   Keep it under about 60 lines. Leave the other sections and the frontmatter as they are.
+7. Snapshot the note first if it has uncommitted changes (Safety rules). Then edit only the `## Review` section.
+8. Report the file changed, the verdict, and whether the code was read or missing.
 
 ## Efficiency (all modes)
 
