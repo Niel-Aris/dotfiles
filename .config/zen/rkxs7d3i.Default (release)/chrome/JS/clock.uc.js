@@ -20,12 +20,13 @@
     defaultArea: CustomizableUI.AREA_NAVBAR,
     removable: true,
     onBuild(aDocument) {
-      const button = aDocument.createXULElement("toolbarbutton");
-      button.id = WIDGET_ID;
-      button.className = "toolbarbutton-1 chromeclass-toolbar-additional";
-      button.setAttribute("label", formatter.format(new Date()));
-      button.setAttribute("tooltiptext", "Current time");
-      return button;
+      // A plain label, not a toolbarbutton: toolbar buttons can hide their text in icon mode
+      const clock = aDocument.createXULElement("label");
+      clock.id = WIDGET_ID;
+      clock.setAttribute("value", formatter.format(new Date()));
+      clock.style.padding = "0 10px";
+      clock.style.alignSelf = "center";
+      return clock;
     },
   });
 
@@ -33,7 +34,7 @@
   setInterval(() => {
     const text = formatter.format(new Date());
     for (const win of Services.wm.getEnumerator("navigator:browser")) {
-      win.document.getElementById(WIDGET_ID)?.setAttribute("label", text);
+      win.document.getElementById(WIDGET_ID)?.setAttribute("value", text);
     }
   }, 1000);
 })();
