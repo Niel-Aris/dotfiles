@@ -8,10 +8,7 @@
   if (Services.clockInstalled) return;
   Services.clockInstalled = true;
 
-  const { CustomizableUI } = ChromeUtils.importESModule(
-    "resource:///modules/CustomizableUI.sys.mjs"
-  );
-
+  // CustomizableUI is already a global in browser windows; its resource:///modules path doesn't load in Zen
   const WIDGET_ID = "custom-clock";
   const formatter = new Intl.DateTimeFormat(undefined, {
     hour: "2-digit",
