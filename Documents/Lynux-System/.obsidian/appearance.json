@@ -1,1 +1,12 @@
-{}
+{
+  "accentColor": "",
+  "baseTheme": "dark",
+  "cssTheme": "",
+  "enabledCssSnippets": [
+    "lynx-caelestia"
+  ],
+  "interfaceFontFamily": "Noto Sans Mono",
+  "textFontFamily": "Noto Sans Mono",
+  "monospaceFontFamily": "Noto Sans Mono",
+  "baseFontSize": 16
+}

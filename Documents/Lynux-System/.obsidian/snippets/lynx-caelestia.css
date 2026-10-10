@@ -1,0 +1,48 @@
+/* Lynx rice: matches kitty (#1c1e26 bg, #dee7ec fg, #b3cad4 cursor, #2e323f selection)
+   and the caelestia dynamic scheme accent (#a0cddf). Window opacity is set in
+   ~/.config/caelestia/hypr-user.lua, not here. */
+
+.theme-dark {
+  /* Base surfaces: kitty background, slightly darker chrome */
+  --background-primary: #1c1e26;
+  --background-primary-alt: #181a21;
+  --background-secondary: #17191f;
+  --background-secondary-alt: #13151a;
+  --titlebar-background: #181a21;
+  --titlebar-background-focused: #1c1e26;
+  --tab-container-background: #181a21;
+  --tab-background-active: #1c1e26;
+  --status-bar-background: #181a21;
+  --background-modifier-form-field: #22252e;
+  --background-modifier-border: #2e323f;
+  --background-modifier-border-hover: #3a3f4d;
+  --background-modifier-hover: rgba(222, 231, 236, 0.06);
+  --background-modifier-active-hover: rgba(160, 205, 223, 0.12);
+
+  /* Text: kitty foreground and caelestia on-surface tones */
+  --text-normal: #dee7ec;
+  --text-muted: #a3acb1;
+  --text-faint: #6e777b;
+  --text-selection: #2e323f;
+  --text-accent: #a0cddf;
+  --text-accent-hover: #bceafd;
+  --text-on-accent: #144655;
+  --text-highlight-bg: rgba(160, 205, 223, 0.25);
+
+  /* Accent: caelestia primary */
+  --interactive-accent: #a0cddf;
+  --interactive-accent-hover: #bceafd;
+  --interactive-normal: #22252e;
+  --interactive-hover: #2e323f;
+  --caret-color: #b3cad4;
+  --link-color: #a0cddf;
+  --link-color-hover: #bceafd;
+
+  /* Code */
+  --code-background: #171a20;
+  --code-normal: #dee7ec;
+
+  /* Scrollbars */
+  --scrollbar-thumb-bg: rgba(160, 205, 223, 0.12);
+  --scrollbar-active-thumb-bg: rgba(160, 205, 223, 0.28);
+}
