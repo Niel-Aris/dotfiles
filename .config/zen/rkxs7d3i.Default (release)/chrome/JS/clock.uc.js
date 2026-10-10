@@ -37,4 +37,19 @@
       win.document.getElementById(WIDGET_ID)?.setAttribute("value", text);
     }
   }, 1000);
+
+  // Temporary diagnostics: log where the clock ended up in each window
+  setTimeout(() => {
+    for (const win of Services.wm.getEnumerator("navigator:browser")) {
+      const node = win.document.getElementById(WIDGET_ID);
+      const bar = win.document.getElementById("nav-bar");
+      console.log("clock diagnostics", {
+        found: !!node,
+        parent: node?.parentNode?.id,
+        width: node?.getBoundingClientRect().width,
+        navBarWidth: bar?.getBoundingClientRect().width,
+        navBarDisplay: bar && win.getComputedStyle(bar).display,
+      });
+    }
+  }, 5000);
 })();
