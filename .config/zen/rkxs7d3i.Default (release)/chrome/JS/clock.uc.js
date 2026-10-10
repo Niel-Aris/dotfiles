@@ -20,18 +20,18 @@
     defaultArea: CustomizableUI.AREA_NAVBAR,
     removable: true,
     onBuild(aDocument) {
-      // A plain label, not a toolbarbutton: toolbar buttons can hide their text in icon mode
-      const clock = aDocument.createXULElement("label");
+      // An HTML span sizes itself to its text; the XUL label stayed at 30px inside the nav bar
+      const clock = aDocument.createElementNS("http://www.w3.org/1999/xhtml", "span");
       clock.id = WIDGET_ID;
-      clock.setAttribute("value", formatter.format(new Date()));
-      clock.style.padding = "0 10px";
-      clock.style.alignSelf = "center";
-      clock.style.whiteSpace = "nowrap";
-      clock.style.color = "var(--toolbar-color)";
-      // The nav bar is a flex row, which shrinks the label to 30px unless it is told not to
-      clock.style.flexShrink = "0";
-      clock.style.minWidth = "max-content";
-      clock.setAttribute("crop", "none");
+      clock.textContent = formatter.format(new Date());
+      const style = (prop, value) => clock.style.setProperty(prop, value, "important");
+      style("padding", "0 10px");
+      style("align-self", "center");
+      style("white-space", "nowrap");
+      style("color", "var(--toolbar-color)");
+      style("flex", "0 0 auto");
+      style("width", "max-content");
+      style("min-width", "max-content");
       return clock;
     },
   });
@@ -40,7 +40,8 @@
   setInterval(() => {
     const text = formatter.format(new Date());
     for (const win of Services.wm.getEnumerator("navigator:browser")) {
-      win.document.getElementById(WIDGET_ID)?.setAttribute("value", text);
+      const node = win.document.getElementById(WIDGET_ID);
+      if (node) node.textContent = text;
     }
   }, 1000);
 
@@ -55,7 +56,10 @@
         width: node?.getBoundingClientRect().width,
         navBarWidth: bar?.getBoundingClientRect().width,
         navBarDisplay: bar && win.getComputedStyle(bar).display,
-        value: node?.getAttribute("value"),
+        value: node?.textContent,
+        display: node && win.getComputedStyle(node).display,
+        maxWidth: node && win.getComputedStyle(node).maxWidth,
+        scrollWidth: node?.scrollWidth,
         color: node && win.getComputedStyle(node).color,
         fontSize: node && win.getComputedStyle(node).fontSize,
         height: node?.getBoundingClientRect().height,
