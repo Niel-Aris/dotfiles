@@ -11,7 +11,7 @@ import signal
 import subprocess
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,7 +19,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
+from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango, PangoCairo  # noqa: E402
 
 import store  # noqa: E402
 
@@ -28,6 +28,14 @@ SOUND = "/usr/share/sounds/freedesktop/stereo/alarm-clock-elapsed.oga"
 
 SCHEME = os.path.expanduser("~/.config/hypr/scheme/current.lua")
 FALLBACK = {"primary": "a0cddf", "onPrimary": "144655", "tertiary": "c9daff", "error": "fa746f"}
+
+# Streak flame, same shapes and colours as the Progress note in the vault
+FLAME_OUTER = "M0,-50 C12,-30 38,-12 38,18 C38,38 22,50 0,50 C-22,50 -38,38 -38,18 C-38,2 -28,-8 -22,-18 C-18,-8 -12,-2 -8,0 C-10,-20 -4,-34 0,-50 Z"
+FLAME_INNER = "M0,-4 C8,8 18,16 18,30 C18,42 10,48 0,48 C-10,48 -18,42 -18,30 C-18,16 -8,8 0,-4 Z"
+SHIELD = "M0,-7 L6,-4.5 L6,1 C6,5 0,8 0,8 C0,8 -6,5 -6,1 L-6,-4.5 Z"
+STREAK_LIT = {"outer": "FF9600", "inner": "FFC800", "text": "FF9600"}
+STREAK_OFF = {"outer": "4a5160", "inner": "5f6878", "text": "7d8596"}
+STREAK_BLUE = "1CB0F6"
 
 
 def load_palette():
@@ -185,6 +193,136 @@ class Engine:
             self._finish()
 
 
+# --------------------------------------------------------------------------- streak
+def _trace(cr, d):
+    """Trace an SVG path made of absolute M, L, C and Z commands onto cr."""
+    tokens = re.findall(r"[MLCZ]|-?\d+(?:\.\d+)?", d)
+    cmd, i = None, 0
+    while i < len(tokens):
+        if tokens[i] in ("M", "L", "C", "Z"):
+            cmd = tokens[i]
+            i += 1
+            if cmd == "Z":
+                cr.close_path()
+        elif cmd == "C":
+            cr.curve_to(*(float(t) for t in tokens[i:i + 6]))
+            i += 6
+        else:  # M, or the implicit L pairs after it
+            x, y = float(tokens[i]), float(tokens[i + 1])
+            if cmd == "M":
+                cr.move_to(x, y)
+                cmd = "L"
+            else:
+                cr.line_to(x, y)
+            i += 2
+
+
+def _text(cr, x, y, text, size, color, center=False):
+    layout = PangoCairo.create_layout(cr)
+    font = Pango.FontDescription.from_string("Sans Bold")
+    font.set_absolute_size(size * Pango.SCALE)
+    layout.set_font_description(font)
+    layout.set_text(text, -1)
+    width, _ = layout.get_pixel_size()
+    cr.move_to(x - width / 2 if center else x, y)
+    cr.set_source_rgb(*rgb(color))
+    PangoCairo.show_layout(cr, layout)
+
+
+class StreakView(Gtk.DrawingArea):
+    """Flame, day count and this week's days for the selected type of work."""
+
+    def __init__(self):
+        super().__init__(content_width=316, content_height=112, hexpand=True)
+        self.state = None
+        self.set_draw_func(self._draw)
+
+    def set_state(self, state):
+        self.state = state
+        self.queue_draw()
+
+    def _draw(self, _area, cr, w, _h):
+        s = self.state
+        if s is None:
+            return
+        lit = s["lit"]
+        pal = STREAK_LIT if lit else STREAK_OFF
+        today = s["today"]
+
+        if lit:  # glow under the flame
+            cr.save()
+            cr.translate(48, 68)
+            cr.scale(22, 4)
+            cr.arc(0, 0, 1, 0, 2 * math.pi)
+            cr.restore()
+            cr.set_source_rgba(*rgb(STREAK_LIT["inner"]), 0.25)
+            cr.fill()
+
+        cr.save()
+        cr.translate(48, 36)
+        cr.scale(0.6, 0.6)
+        for d, color in ((FLAME_OUTER, pal["outer"]), (FLAME_INNER, pal["inner"])):
+            _trace(cr, d)
+            cr.set_source_rgb(*rgb(color))
+            cr.fill()
+        cr.restore()
+
+        if lit:
+            caption = "day streak"
+        elif s["qualifying"]:
+            caption = "streak lost"
+        else:
+            caption = "no streak yet"
+        _text(cr, 86, 6, str(s["current"]), 28, pal["text"])
+        _text(cr, 86, 42, caption, 12, pal["text"])
+        _text(cr, 86, 60, f"Today {store.fmt_hm(s['today_secs'])} of 1h", 11, STREAK_OFF["text"])
+
+        monday = today - timedelta(days=today.weekday())
+        step = (w - 44) / 6
+        for i, letter in enumerate("MTWTFSS"):
+            d = monday + timedelta(days=i)
+            cx, cy = 22 + step * i, 96
+            label = STREAK_LIT["outer"] if d == today else STREAK_OFF["text"]
+            _text(cr, cx, 74, letter, 10, label, center=True)
+            if d > today:
+                cr.set_source_rgb(*rgb("3a3f4d"))
+                cr.arc(cx, cy, 2.5, 0, 2 * math.pi)
+                cr.fill()
+            elif d in s["qualifying"]:
+                cr.set_source_rgb(*rgb(STREAK_LIT["outer"]))
+                cr.arc(cx, cy, 9, 0, 2 * math.pi)
+                cr.fill()
+                cr.set_source_rgb(1, 1, 1)
+                cr.set_line_width(2.5)
+                cr.set_line_cap(1)  # round
+                cr.move_to(cx - 4, cy)
+                cr.line_to(cx - 1, cy + 3)
+                cr.line_to(cx + 4, cy - 3)
+                cr.stroke()
+            elif d in s["frozen"]:
+                cr.set_source_rgb(*rgb(STREAK_BLUE))
+                cr.arc(cx, cy, 9, 0, 2 * math.pi)
+                cr.fill()
+                cr.save()
+                cr.translate(cx, cy)
+                _trace(cr, SHIELD)
+                cr.restore()
+                cr.set_source_rgb(1, 1, 1)
+                cr.fill()
+            elif d == today:
+                cr.set_source_rgb(*rgb(STREAK_LIT["outer"]))
+                cr.set_line_width(2)
+                cr.set_dash([3.0, 3.0], 0)
+                cr.arc(cx, cy, 8, 0, 2 * math.pi)
+                cr.stroke()
+                cr.set_dash([], 0)
+            else:
+                cr.set_source_rgb(*rgb(STREAK_OFF["outer"]))
+                cr.set_line_width(2)
+                cr.arc(cx, cy, 8, 0, 2 * math.pi)
+                cr.stroke()
+
+
 # --------------------------------------------------------------------------- window
 class PomodoroWindow(Adw.ApplicationWindow):
     def __init__(self, app, engine):
@@ -272,6 +410,12 @@ class PomodoroWindow(Adw.ApplicationWindow):
             self.stat_values[key] = val
             stats.append(card)
         page.append(stats)
+
+        # streak for the selected tag
+        self.streak_view = StreakView()
+        streak_card = Gtk.Box(css_classes=["card"], margin_top=6)
+        streak_card.append(self.streak_view)
+        page.append(streak_card)
         return page
 
     # -- settings page
@@ -386,9 +530,11 @@ class PomodoroWindow(Adw.ApplicationWindow):
 
     # -- state -> widgets
     def refresh_stats(self):
-        t = store.totals(self.current_tag())
+        tag = self.current_tag()
+        t = store.totals(tag)
         for key, lbl in self.stat_values.items():
             lbl.set_label(store.fmt_hm(t[key][0]))
+        self.streak_view.set_state(store.streak(tag))
 
     def update_time(self):
         e = self.engine
