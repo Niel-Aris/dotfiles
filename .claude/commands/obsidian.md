@@ -53,14 +53,17 @@ Arguments: $ARGUMENTS
 
 ## Rewrite mode
 
-Goal: make the note cleaner while keeping it the user's own writing.
+Goal: turn the note into clean, readable, less informal writing. This is more than a typo pass: restructure and extend the note so it reads well, while it stays the user's own writing.
 
-- Fix spelling, grammar, and punctuation. Fix heading levels, merge duplicate lines, and make bullet lists consistent.
-- Keep every fact, example, and question. Keep the user's wording wherever it's already clear.
-- Don't add facts, examples, or explanations.
-- Don't make the note more technical than it is. If a term is technical, keep it exactly as written. Go deeper only if the user wrote the deeper material themselves.
+- Restructure freely: reorganize sections, headings, and bullets so related points sit together. Merge duplicate lines, fix heading levels, and make bullet lists consistent.
+- Extend: expand terse fragments into complete sentences, and add the connecting words needed to read smoothly. Extending means fuller wording of what's already there, not new content.
+- Don't add facts, examples, conclusions, or explanations the user didn't write.
+- Tone: plain and less informal. Replace casual phrasing (slang, shorthand, "a couple times", and similar) with neutral wording, but keep the language simple and everyday.
+- Technical language: use it only where the user already used it, and keep the term exactly as written (for example `%zu format identifier`, `do while`). Don't introduce technical terms or make the note more technical than it is.
+- Keep every fact, example, and question from the original. Keep the section names unless they're unclear.
 - Leave frontmatter, `[[links]]`, `#tags`, code blocks, and images alone, except to fix obvious typos in prose.
-- Report the changes grouped by type (spelling, structure, merged lines).
+- Fix spelling, grammar, and punctuation as part of the rewrite.
+- Report the changes grouped by type (structure, wording, spelling, merged lines, extended lines).
 
 ## Index mode
 
