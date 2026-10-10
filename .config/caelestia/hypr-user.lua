@@ -13,6 +13,9 @@ hl.window_rule({ match = { class = "org.lynx.Pomodoro" }, float = true, center =
 
 -- Obsidian: slightly more see-through than the global windowOpacity (0.95)
 hl.window_rule({ match = { class = "md.obsidian.Obsidian" }, opacity = "0.9 override" })
+
+-- Zen: fully opaque, overriding the global windowOpacity (0.95)
+hl.window_rule({ match = { class = "zen" }, opacity = "1.0 override" })
 hl.on("hyprland.start", function()
     hl.exec_cmd("pomodoro daemon")
 end)
