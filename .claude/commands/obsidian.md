@@ -22,7 +22,7 @@ Arguments: $ARGUMENTS
 - `Concepts/`: one note per concept. The file name is the canonical term.
 - `Templates/`: `Learning Log`, `Concept`, `Project`.
 - `Attachments/`: every image and attachment. New files go here automatically.
-- `Learning-C/<project>/Project overview.md` and `Learning-C/<project>/Day N/Day N - What I learned.md`. Projects are the folders in ~/projects.
+- `Learning-C/<project>/Project overview.md` and `Learning-C/<project>/Day N/What I learned.md` and `Learning-C/<project>/Day N/Instructions.md`. Projects are the folders in ~/projects.
 
 ## Target resolution (all modes)
 
