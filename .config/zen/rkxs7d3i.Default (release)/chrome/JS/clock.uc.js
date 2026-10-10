@@ -28,6 +28,10 @@
       clock.style.alignSelf = "center";
       clock.style.whiteSpace = "nowrap";
       clock.style.color = "var(--toolbar-color)";
+      // The nav bar is a flex row, which shrinks the label to 30px unless it is told not to
+      clock.style.flexShrink = "0";
+      clock.style.minWidth = "max-content";
+      clock.setAttribute("crop", "none");
       return clock;
     },
   });
