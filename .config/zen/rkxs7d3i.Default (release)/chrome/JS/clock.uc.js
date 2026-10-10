@@ -26,6 +26,8 @@
       clock.setAttribute("value", formatter.format(new Date()));
       clock.style.padding = "0 10px";
       clock.style.alignSelf = "center";
+      clock.style.whiteSpace = "nowrap";
+      clock.style.color = "var(--toolbar-color)";
       return clock;
     },
   });
@@ -49,6 +51,10 @@
         width: node?.getBoundingClientRect().width,
         navBarWidth: bar?.getBoundingClientRect().width,
         navBarDisplay: bar && win.getComputedStyle(bar).display,
+        value: node?.getAttribute("value"),
+        color: node && win.getComputedStyle(node).color,
+        fontSize: node && win.getComputedStyle(node).fontSize,
+        height: node?.getBoundingClientRect().height,
       });
     }
   }, 5000);
