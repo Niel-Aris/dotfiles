@@ -9,6 +9,10 @@
         "showWeather": false
     },
     "general": {
+        "idle": {
+            "lockBeforeSleep": false,
+            "timeouts": []
+        },
         "apps": {
             "terminal": [
                 "kitty"
