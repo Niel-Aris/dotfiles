@@ -69,7 +69,7 @@ Goal: turn the note into clean, readable, less informal writing. This is more th
 
 Goal: link the note's concepts to one definition per concept, and keep the index free of duplicates.
 
-1. Read the note. Read `Index.md` and every `Concepts/*.md`, including their frontmatter `aliases`.
+1. Read the note and `Index.md`. Get the titles and frontmatter `aliases` of existing concepts with one grep over `Concepts/*.md`, and read a concept note only when you need to edit or link it.
 2. Pick the concepts. Include only terms from systems engineering or the note's theme (C, memory, binary data, networking, operating systems, virtual machines, cloud, tools). Skip everyday words, names of people, and generic words.
 3. Match each candidate against existing concept titles and aliases, case-insensitively, and by meaning. The same thing gets one concept even when it's spelled differently. For example, "water" and "H2O" both point to `Concepts/Water.md`, and `H2O` goes into its `aliases`. If the spelling is new, add it to `aliases`. Never create a second note for the same thing.
 4. For a genuinely new concept, create `Concepts/<Canonical Term>.md` from the Concept template. It needs a short accurate definition, an example, systems-engineering use cases, related concepts as `[[links]]`, and tags. Set `source: generated` so the user can review it. Keep the definition short. Avoid characters that aren't allowed in file names.
@@ -83,6 +83,11 @@ Goal: link the note's concepts to one definition per concept, and keep the index
 6. In the note, link the first mention of each concept as `[[Canonical Term|the words as written]]`. Don't change the wording.
 7. Tags. Frontmatter `tags` for concept notes: `concept` plus area tags such as `memory`, `cloud`, `networking`, `binary`, `c`, `vm`, `os`. For learning notes, add `learning`, `project/<name>`, and `day/<n>` if they're missing.
 8. Report: concepts linked, new concepts created, aliases added, and anything skipped with the reason.
+
+## Efficiency (all modes)
+
+- Batch independent calls into one turn: snapshot, reads, and greps run together, and new files are written together.
+- Don't re-read a file after editing it, and skip a verification diff unless the report needs it.
 
 ## Edit mode
 
