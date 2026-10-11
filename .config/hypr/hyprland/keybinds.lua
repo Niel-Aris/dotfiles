@@ -50,7 +50,8 @@ local function extend_keybind(base, suffix)
 end
 
 -- Launcher: KRunner on SUPER (tap SUPER), Caelestia launcher kept on SUPER + Space
-create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("krunner"), release)
+-- Toggle the running KRunner over D-Bus; starting the krunner client each press made it flash and vanish
+create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("sh -c 'busctl --user call org.kde.krunner /App org.kde.krunner.App toggleDisplay || krunner'"), release)
 create_bind(vars.kbLauncher, hl.dsp.global("caelestia:launcher"))
 
 -- Misc
