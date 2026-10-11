@@ -5,6 +5,7 @@ alsa-firmware
 alsa-plugins
 alsa-utils
 amd-ucode
+ani-cli
 ark
 awesome-terminal-fonts
 base
@@ -101,6 +102,7 @@ gst-libav
 gst-plugin-pipewire
 gst-plugin-va
 gst-plugins-bad
+gst-plugins-good
 gst-plugins-ugly
 gwenview
 haruna
@@ -172,6 +174,7 @@ nss-mdns
 nvibrant-bin
 nvidia-settings
 nvidia-utils
+obsidian
 opencl-nvidia
 openssh
 os-prober
@@ -228,6 +231,7 @@ spicetify-cli
 spicetify-marketplace-bin
 spotify
 starship
+sticky
 sudo
 sysfsutils
 tesseract-data-eng
@@ -248,6 +252,7 @@ upower
 usb_modeswitch
 usbutils
 uwsm
+uxplay
 vim
 vlc-plugins-all
 vulkan-icd-loader
