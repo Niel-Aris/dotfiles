@@ -49,10 +49,9 @@ local function extend_keybind(base, suffix)
     return valid_keybind(base) and base .. " + " .. suffix or nil
 end
 
--- Launcher: KRunner on SUPER (tap SUPER), Caelestia launcher kept on SUPER + Space
--- Toggle the running KRunner over D-Bus; starting the krunner client each press made it flash and vanish
-create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("sh -c 'busctl --user call org.kde.krunner /App org.kde.krunner.App toggleDisplay || krunner'"), release)
-create_bind(vars.kbLauncher, hl.dsp.global("caelestia:launcher"))
+-- Launcher: Fuzzel app search on SUPER (tap SUPER), Fuzzel file search on SUPER + Space
+create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("pkill -x fuzzel || fuzzel"), release)
+create_bind(vars.kbLauncher, hl.dsp.exec_cmd("fuzzel-files"))
 
 -- Misc
 create_bind(vars.kbSession, hl.dsp.global("caelestia:session"))

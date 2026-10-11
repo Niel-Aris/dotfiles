@@ -1,0 +1,7 @@
+#!/bin/sh
+# Spotlight-style file search: list files and folders under $HOME in fuzzel, open the pick with xdg-open
+pkill -x fuzzel && exit 0
+sel=$(fd --type f --type d --exclude node_modules --exclude .cache . "$HOME" 2>/dev/null \
+  | sed "s|^$HOME/|~/|" \
+  | fuzzel --dmenu --placeholder "Search files") || exit 0
+[ -n "$sel" ] && xdg-open "$(printf '%s' "$sel" | sed "s|^~/|$HOME/|")"
