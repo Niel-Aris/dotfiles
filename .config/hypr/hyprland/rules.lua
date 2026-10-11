@@ -105,6 +105,7 @@ tagged_rule(float_60_70_tag, {
 tagged_rule(float_60_70_tag, {
     "org.pulseaudio.pavucontrol|com.saivert.pwvucontrol", -- Audio control
     "yad-icon-browser",                                   -- GTK icon browser
+    "foot",                                               -- Terminal (SUPER + T)
 }, "class")
 
 -- 70% x 80%
