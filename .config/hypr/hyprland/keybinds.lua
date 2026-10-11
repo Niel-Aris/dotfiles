@@ -59,6 +59,9 @@ create_bind(
     end
 )
 
+-- KRunner (trial launcher, SUPER + Space keeps the Caelestia launcher on SUPER)
+create_bind("SUPER + Space", hl.dsp.exec_cmd("krunner"))
+
 -- Misc
 create_bind(vars.kbSession, hl.dsp.global("caelestia:session"))
 create_bind(vars.kbShowSidebar, hl.dsp.global("caelestia:sidebar"))
