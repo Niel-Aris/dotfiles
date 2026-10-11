@@ -49,18 +49,9 @@ local function extend_keybind(base, suffix)
     return valid_keybind(base) and base .. " + " .. suffix or nil
 end
 
--- Launcher
-local launcher_default = normalise_keybind("SUPER + SUPER_L")
-create_bind(
-    vars.kbLauncher,
-    hl.dsp.global("caelestia:launcher"),
-    function(key)
-        return normalise_keybind(key) == launcher_default and release or nil
-    end
-)
-
--- KRunner (trial launcher, SUPER + Space keeps the Caelestia launcher on SUPER)
-create_bind("SUPER + Space", hl.dsp.exec_cmd("krunner"))
+-- Launcher: KRunner on SUPER (tap SUPER), Caelestia launcher kept on SUPER + Space
+create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("krunner"), release)
+create_bind(vars.kbLauncher, hl.dsp.global("caelestia:launcher"))
 
 -- Misc
 create_bind(vars.kbSession, hl.dsp.global("caelestia:session"))

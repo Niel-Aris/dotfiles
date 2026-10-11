@@ -9,7 +9,7 @@ return {
     terminal                   = "foot",
     browser                    = "firefox",
     editor                     = "codium",
-    fileExplorer               = "thunar",
+    fileExplorer               = "dolphin",
     audioSettings              = "pwvucontrol",
 
     -- Touchpad
@@ -134,7 +134,7 @@ return {
     kbVolumeMute               = "SUPER + SHIFT + M",
 
     -- Misc
-    kbLauncher                 = "SUPER + SUPER_L",
+    kbLauncher                 = "SUPER + Space",
     kbSession                  = "CTRL + ALT + Delete",
     kbShowSidebar              = "SUPER + N",
     kbClearNotifs              = "CTRL + ALT + C",
