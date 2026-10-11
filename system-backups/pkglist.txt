@@ -236,7 +236,6 @@ sudo
 sysfsutils
 tesseract-data-eng
 texinfo
-thunar
 trash-cli
 ttf-bitstream-vera
 ttf-dejavu
