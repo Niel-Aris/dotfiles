@@ -154,5 +154,9 @@
       "effortLevel": "high"
     }
   },
-  "theme": "auto"
+  "theme": "auto",
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  }
 }
