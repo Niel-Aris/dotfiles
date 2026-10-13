@@ -7,8 +7,9 @@
     },
     "qt-core.additionalQtPaths": [
         {
-            "name": "Qt-5.15.19-linux-g++-x86_64_from_PATH",
-            "path": "/usr/bin/qmake"
+            "name": "Qt-6.12.0-linux-g++-x86_64",
+            "path": "/usr/bin/qmake6"
         }
-    ]
+    ],
+    "qt-ui.customWidgetsDesignerExePath": "/usr/lib/qt6/bin/designer"
 }
