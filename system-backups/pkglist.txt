@@ -167,6 +167,7 @@ networkmanager
 networkmanager-openvpn
 nfs-utils
 nilfs-utils
+ninja
 noto-fonts
 noto-fonts-cjk
 noto-fonts-emoji
