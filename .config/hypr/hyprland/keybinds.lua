@@ -49,9 +49,9 @@ local function extend_keybind(base, suffix)
     return valid_keybind(base) and base .. " + " .. suffix or nil
 end
 
--- Launcher: Fuzzel app search on SUPER (tap SUPER), Fuzzel file search on SUPER + Space
-create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("pkill -x fuzzel || fuzzel"), release)
-create_bind(vars.kbLauncher, hl.dsp.exec_cmd("fuzzel-files"))
+-- Launcher: Fuzzel file search on SUPER (tap SUPER), Fuzzel app search on SUPER + Space
+create_bind("SUPER + SUPER_L", hl.dsp.exec_cmd("fuzzel-files"), release)
+create_bind(vars.kbLauncher, hl.dsp.exec_cmd("pkill -x fuzzel || fuzzel"))
 
 -- Misc
 create_bind(vars.kbSession, hl.dsp.global("caelestia:session"))
