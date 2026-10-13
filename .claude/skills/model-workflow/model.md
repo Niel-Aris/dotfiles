@@ -19,7 +19,7 @@ Write clean code with only maintainer-level comments. Explanations go in Obsidia
 
 ## 3 · Test and commit
 
-Run it: tests, or a smoke run such as `flask --app ... routes`, curl, or a script. Then commit with the message `B0NN: <title>`, getting the id from `mw next batch`. Journal it: `mw journal built "B0NN <title>: <files> (<short hash>)"`.
+Run it: tests, or a smoke run such as `flask --app ... routes`, curl, or a script. Then commit with the message `B0NN: <title>`, getting the id from `mw next batch`. Journal it: `mw journal built "B0NN <title>: <files> (<short hash>)"`. Then register the batch's concepts yourself, with the exact names you will put in the packet: `mw introduce B0NN "<Concept>" ...`. This happens before the Scribe runs, so step 5 can grade them straight away, and it fixes the canonical names.
 
 ## 4 · Hand off to the Scribe (Haiku)
 
@@ -37,7 +37,7 @@ why_now: <1 sentence>
 alternatives: <option — why rejected; one per line>
 tricky: <the parts a learner is likely to misread, and why>
 patterns: <named algorithms or patterns introduced or changed, each with category, subject, file, symbol, and line range; or "none">
-concepts: <concepts this batch uses>
+concepts: <concepts this batch uses: the same names you passed to mw introduce>
 ```
 
 The Scribe writes the Batch note, any Pattern notes and new Concept notes, fills in the code from the commit, and returns a three-line summary. Don't paste code to it, since it reads the commit itself. Then run `mw commit-vault "B0NN notes"`.
@@ -53,6 +53,9 @@ Decide per **section** (a run of lines that does one thing):
 
 ## 5 · Check (PRIMM), in the chat, kept short
 
+You don't need to wait for the Scribe: the concepts are already registered (step 3).
+
+
 Ask, then wait for answers:
 
 1. **Predict:** what does a specific call return, or what happens with a specific input?
@@ -66,7 +69,7 @@ If the user wants to skip the check, let them, and journal it with `learner` "sk
 ## 6 · Close the batch
 
 - Run `mw sync` so the Map handles and Index include the new Patterns and Concepts.
-- Offer to merge into `main` so sibling agents see the code. Their memory is shared already; their code isn't until the merge.
+- Offer to merge into `main` so sibling agents see the code. If the batch added or changed `requirements.txt`, say so: siblings can't import the new packages until the merge. Their memory is shared already; their code isn't until the merge.
 - Offer a checkpoint every three batches.
 
 ## Fading table (per concept, stored in Learner)

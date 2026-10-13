@@ -10,6 +10,12 @@ concepts: []
 ---
 # B000 · Short title
 
+> [!tldr] In short
+> - **What:** one sentence.
+> - **Remember:** the one idea to keep from this batch.
+> - **Your code:** what you wrote, or the bug you fixed (omit if none).
+> - **Check yourself:** the predict question.
+
 > [!goal] Goal
 > What this batch achieves, in one or two sentences.
 

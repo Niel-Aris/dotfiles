@@ -15,7 +15,7 @@ New practice is a **Challenge** note in `.op/Challenges/`. Get the id from `mw n
 - Size it from Learner: mostly `seen`/`ok` concepts, plus **one** new concept.
 - **Acceptance tests** the user can run themselves: inputs and expected outputs, or a pytest file you write. Tests aren't the solution.
 - Hints go in collapsed callouts, from vague to specific. Never put a solution there.
-- Register each concept the Challenge introduces: `mw learner set "<Concept>" --new --evidence "C00N introduced"`. `mw lint` flags any you missed.
+- Register the concepts the Challenge practises: `mw introduce C00N "<Concept>" ...`. It skips known ones and prints `→ no Concept note yet` for each note you still have to write (see below). `mw lint` flags any you missed.
 - The learner writes their code in `practice/c00n_<slug>.py` in this worktree. Commit it on this agent's branch as `C00N: attempt` (and again after fixes). Don't merge `practice/` into `main` unless the user asks.
 - When the user finishes, put the path to their code in `solution:`. Then review it, following the teacher skill's honesty rule, in `## Review`: what works, each problem with its line, and what to change. Don't write the fixed version.
 

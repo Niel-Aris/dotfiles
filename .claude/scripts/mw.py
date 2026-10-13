@@ -12,12 +12,16 @@ write prose, this script moves code, dates, and tables around.
 import argparse
 import datetime as dt
 import difflib
+import fcntl
+import hashlib
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
+import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 
 SKILL_DIR = Path.home() / ".claude/skills/model-workflow"
@@ -198,6 +202,10 @@ def ensure_vault(vault):
     return created
 
 
+VENV_SETUP = ("[ -f requirements.txt ] && { python3 -m venv .venv && "
+              ".venv/bin/pip install -q -r requirements.txt; } || true")
+
+
 def write_if_missing(path, content):
     path.parent.mkdir(parents=True, exist_ok=True)
     if path.exists():
@@ -217,7 +225,7 @@ def cmd_init(a):
     files = {
         ".mw.json": json.dumps({"vault": vault_str, "operation": a.op}, indent=2) + "\n",
         ".superset/config.json": json.dumps(
-            {"setup": [f'python3 -I "$HOME/.claude/scripts/mw.py" register'] + (a.setup or [])},
+            {"setup": [f'python3 -I "$HOME/.claude/scripts/mw.py" register', VENV_SETUP] + (a.setup or [])},
             indent=2) + "\n",
         ".claude/settings.json": json.dumps({
             "model": a.model,
@@ -369,6 +377,15 @@ def learner_path(vault):
     return vault / "Me" / "Learner.md"
 
 
+@contextmanager
+def learner_lock(vault):
+    """Serialise read-modify-write of Learner.md across agents and sub-agents."""
+    key = hashlib.sha1(str(vault.resolve()).encode()).hexdigest()[:12]
+    with open(Path(tempfile.gettempdir()) / f"mw-learner-{key}.lock", "w") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        yield
+
+
 def learner_load(vault):
     text = learner_path(vault).read_text(encoding="utf-8")
     items = {}
@@ -448,9 +465,22 @@ def checked(r):
     return "✓" in r.get("evidence", "") or "✗" in r.get("evidence", "")
 
 
+def learner_vault():
+    root = repo_root()
+    return Ctx(need_agent=False).vault if root and (root / ".mw.json").exists() else DEFAULT_VAULT
+
+
 def cmd_learner(a):
-    vault = Ctx(need_agent=False).vault if repo_root() and (repo_root() / ".mw.json").exists() else DEFAULT_VAULT
-    text, items = learner_load(vault)
+    vault = learner_vault()
+    if a.action in ("show", "known"):
+        learner_read(vault, a)
+        return
+    with learner_lock(vault):
+        learner_write(vault, a)
+
+
+def learner_read(vault, a):
+    _, items = learner_load(vault)
     if a.action == "show":
         rows = sorted(items.values(), key=lambda r: r["concept"].lower())
         if a.concept:
@@ -468,7 +498,10 @@ def cmd_learner(a):
     if a.action == "known":
         for r in sorted(items.values(), key=lambda r: r["concept"].lower()):
             print(f"{r['concept']}\t{r['level']}\tfade={r['fade']}")
-        return
+
+
+def learner_write(vault, a):
+    text, items = learner_load(vault)
     if not a.concept:
         die("concept required")
     name = resolve_concept(vault, items, a.concept, a.new)
@@ -504,6 +537,30 @@ def cmd_learner(a):
     items[key] = r
     learner_save(vault, text, items)
     print(learner_line(r)[2:] + note)
+
+
+def cmd_introduce(a):
+    """Register the concepts a batch, challenge or intake brings in, before any check or note."""
+    vault = learner_vault()
+    intake = a.source.lower() == "intake"
+    notes = concept_names(vault)
+    with learner_lock(vault):
+        text, items = learner_load(vault)
+        for raw in a.concepts:
+            name = resolve_concept(vault, items, raw, allow_new=True)
+            key = name.lower()
+            if key in items:
+                print(f"known  {name} ({items[key]['level']}, fade {items[key]['fade']})")
+                continue
+            # self-report is not evidence: intake tops out at seen / fade 1
+            r = {"concept": name, "level": "seen" if intake else "new",
+                 "fade": "1" if intake else "0", "streak": "0"}
+            add_evidence(r, "intake (self-report)" if intake else f"{a.source} introduced")
+            schedule(r)
+            items[key] = r
+            hint = "" if key in notes else f"  → no Concept note yet: Concepts/{name}.md"
+            print(f"new    {name}{hint}")
+        learner_save(vault, text, items)
 
 
 # ---------- roster / map / index ----------
@@ -692,9 +749,11 @@ def render_note(repo, note, commit=None):
         if path not in cache:
             cache[path] = file_at(repo, commit, path)
         lines = cache[path]
-        s, e = (int(s), int(e)) if s else (1, len(lines))
-        if not (1 <= s <= e <= len(lines)):
+        if not s:
+            s, e = 1, len(lines)
+        elif not (1 <= int(s) <= int(e) <= len(lines)):
             die(f"{note.name}: {path} {s}-{e} out of range (file has {len(lines)} lines)")
+        s, e = int(s), int(e)
         lang = LANG.get(Path(path).suffix, "")
         chunk = "\n".join(lines[s - 1:e])
         if kind == "fullcode":
@@ -785,8 +844,42 @@ def open_challenges(op, agent=None):
     return out
 
 
-def venv_missing(root):
-    return (root / "requirements.txt").exists() and not (root / ".venv").exists()
+REQ_STAMP = ".mw-requirements"
+
+
+def req_hash(path):
+    return hashlib.sha1(path.read_bytes()).hexdigest()[:12]
+
+
+def has_file(root, ref, path):
+    return subprocess.run(["git", "cat-file", "-e", f"{ref}:{path}"], cwd=root,
+                          capture_output=True).returncode == 0
+
+
+def deps_notice(root):
+    """None, or (title, advice) when this worktree can't run the project's Python code yet."""
+    req, venv = root / "requirements.txt", root / ".venv"
+    if req.exists():
+        if not venv.exists():
+            return ("requirements.txt exists but .venv doesn't",
+                    f"Run `{SCRIPT} setup` before running code or tests.")
+        stamp = venv / REQ_STAMP
+        if stamp.exists() and stamp.read_text().strip() != req_hash(req):
+            return ("requirements.txt changed since .venv was built",
+                    f"Run `{SCRIPT} setup` to install the new packages.")
+        return None
+    here = git("rev-parse", "--abbrev-ref", "HEAD", cwd=root, check=False).strip()
+    main = next((b for b in ("main", "master") if has_file(root, b, ".mw.json")), None)
+    if main and main != here and has_file(root, main, "requirements.txt"):
+        return (f"{main} has requirements.txt but this branch doesn't",
+                f"Merge it in (`git merge {main}`), then `{SCRIPT} setup`.")
+    refs = git("for-each-ref", "--format=%(refname:short)", "refs/heads", cwd=root, check=False).split()
+    waiting = [b for b in refs if b not in (here, main) and has_file(root, b, "requirements.txt")]
+    if waiting:
+        return (f"requirements.txt exists only on unmerged branch(es): {', '.join(waiting)}",
+                f"Code here can't import those packages yet. Ask the user to merge "
+                f"{', '.join(waiting)} into {main or 'main'}, then `git merge {main or 'main'}` and `{SCRIPT} setup`.")
+    return None
 
 
 def setup_commands(root):
@@ -803,6 +896,9 @@ def cmd_setup(a):
         r = subprocess.run(c, shell=True, cwd=root)
         if r.returncode != 0:
             die(f"setup step failed ({r.returncode}): {c}")
+    req, venv = root / "requirements.txt", root / ".venv"
+    if req.exists() and venv.exists():
+        (venv / REQ_STAMP).write_text(req_hash(req) + "\n")
     print("setup done")
 
 
@@ -879,6 +975,8 @@ def cmd_context(a):
     inbox = open_inbox(ctx.agent_dir)
     others = [c.parent.name for c in (ctx.op / "Agents").glob("*/Card.md") if c.parent.name != ctx.agent]
     first = fm.get("checkpoint", "never") == "never" and not pending
+    role = str(fm.get("role", "unset")).strip()
+    op_text = (ctx.op / "Operation.md").read_text(encoding="utf-8")
 
     out = [f"<model-workflow>",
            f"You are agent **{ctx.agent}** in Operation **{ctx.op_name}** (Model-Workflow). "
@@ -902,16 +1000,31 @@ def cmd_context(a):
     if chal:
         out += ["", "## Open challenges (yours): " + ", ".join(chal)
                 + " — ask how the learner is getting on before starting anything new"]
-    if venv_missing(ctx.root):
-        out += ["", "## Setup: requirements.txt exists but .venv doesn't",
-                f"Run `{SCRIPT} setup` (re-runs .superset/config.json setup) before running code or tests."]
+    deps = deps_notice(ctx.root)
+    if deps:
+        out += ["", f"## Setup: {deps[0]}", deps[1]]
+    news = sibling_news(ctx.op, ctx.agent)
+    if news:
+        out += ["", "## Sibling news (built/decided since their last checkpoint)", *news]
+    if "_One paragraph" in op_text:
+        out += ["", "## Operation Goal is empty",
+                "Before planning anything, agree the Goal with the user (one paragraph: what is built or "
+                "learned, for whom, and what the learner already knows) and write it into the ## Goal "
+                "section of .op/Operation.md."]
+    if not learner:
+        out += ["", "## Learner model is empty",
+                "Run a 2-minute intake: ask what the user already knows in this area, then "
+                f"`{SCRIPT} introduce intake \"<Concept>\" ...`. Self-report counts as `seen`, fade 1; "
+                "levels above that only come from `learner check`."]
     if inbox:
         out += ["", f"## Inbox: {len(inbox)} open question(s) from other agents — answer them first",
                 *inbox[:10]]
     if first:
         out += ["", "## First session for this agent",
-                "Your Card is empty. Ask the user what this agent's role is, then set it with "
-                f"`{SCRIPT} register --role \"...\"`."
+                (f"Your role is set: {role}. Confirm it with the user in one line."
+                 if role not in ("", "unset") else
+                 "Your Card is empty. Ask the user what this agent's role is, then set it with "
+                 f"`{SCRIPT} register --role \"...\"`.")
                 + (f" Before starting work, read the **For other agents** section of these Cards: "
                    + ", ".join(f".op/Agents/{o}/Card.md" for o in others) + "." if others else "")]
     elif len(pending) >= LAZY_CHECKPOINT:
@@ -919,6 +1032,19 @@ def cmd_context(a):
                 "Before other work, run the checkpoint procedure (`/op checkpoint`: spawn mw-clerk)."]
     out.append("</model-workflow>")
     print("\n".join(out))
+
+
+def sibling_news(op, me, per_agent=3):
+    out = []
+    for card in sorted((op / "Agents").glob("*/Card.md")):
+        name = card.parent.name
+        if name == me:
+            continue
+        since = read_fm(card)[0].get("checkpoint")
+        lines = [l for _, l in journal_lines_since(card.parent, since)
+                 if re.match(r"^- \d\d:\d\d · (built|decided) · ", l)]
+        out += [f"- **{name}** {l[2:]}" for l in lines[-per_agent:]]
+    return out
 
 
 def cmd_hook_prompt(a):
@@ -970,8 +1096,9 @@ def cmd_status(a):
         print(f"Open challenges: {', '.join(chal)}")
     if not vault_has_remote(ctx.vault):
         print(f"WARNING: vault {ctx.vault} has no git remote; commit-vault only commits locally (no backup)")
-    if venv_missing(ctx.root):
-        print(f"WARNING: .venv missing in this worktree; run `{SCRIPT} setup`")
+    deps = deps_notice(ctx.root)
+    if deps:
+        print(f"WARNING: {deps[0]}. {deps[1]}")
 
 
 def all_note_names(vault):
@@ -988,6 +1115,21 @@ def all_note_names(vault):
         for x in ([al] if isinstance(al, str) else al):
             names.add(str(x).lower())
     return names
+
+
+FENCE_RE = re.compile(r"^\s*(?:>\s*)*(```|~~~)")
+
+
+def strip_code(text):
+    """Text without fenced blocks (also inside callouts) and inline code, for link scanning."""
+    out, fenced = [], False
+    for line in text.splitlines():
+        if FENCE_RE.match(line):
+            fenced = not fenced
+            continue
+        if not fenced:
+            out.append(re.sub(r"`[^`\n]*`", "", line))
+    return "\n".join(out)
 
 
 def cmd_lint(a):
@@ -1016,7 +1158,7 @@ def cmd_lint(a):
             issues.append(f"{rel}: unrendered {{{{code}}}} markers → mw.py render")
         if rel.parts[0] in ("Agents",) and "Journal" in rel.parts:
             continue
-        for link in re.findall(r"\[\[([^\]|#]+)", text):
+        for link in re.findall(r"\[\[([^\]|#]+)", strip_code(text)):
             t = link.strip().rstrip("\\").lower()
             if t and t not in names:
                 issues.append(f"{rel}: broken link [[{link.strip()}]]")
@@ -1084,6 +1226,11 @@ def main():
     p.add_argument("--unchecked", action="store_true", help="show: only concepts never checked")
     p.add_argument("--new", action="store_true", help="set/check: allow a concept not seen before")
     p.set_defaults(f=cmd_learner)
+
+    p = sp.add_parser("introduce", help="register concepts a batch/challenge/intake brings in")
+    p.add_argument("source", help="B0NN, C00N, or 'intake' (self-report: seen, fade 1)")
+    p.add_argument("concepts", nargs="+")
+    p.set_defaults(f=cmd_introduce)
 
     p = sp.add_parser("batch-info", help="files, changed lines and numbered code of a commit")
     p.add_argument("commit", nargs="?", default="HEAD")

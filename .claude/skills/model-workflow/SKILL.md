@@ -38,6 +38,7 @@ Use `mw journal skip` for small talk. A Stop hook blocks you from ending a turn 
 
 - You may edit: `.op/Agents/<you>/**`, Batch, Pattern, Challenge and ADR notes you create, and new Concept notes.
 - Don't edit another agent's Card or Journal. Ask it instead (section 4).
+- Exception: the **Goal** and **Stack** sections of `.op/Operation.md` belong to the Operation. Any agent fills them in with the user's agreement, outside the generated roster block.
 - Never hand-edit generated blocks (`<!-- roster -->`, `<!-- handles -->`, `<!-- index -->`, `<!-- concepts -->`). Use `mw sync` and `mw learner ...` to change them.
 - Never load whole Journals into context. Search them with grep.
 
@@ -61,7 +62,7 @@ Run a checkpoint when the user says they're done for the day, after every 3 batc
 
 ## 6. First session of a new agent
 
-The context block says so. Ask the user for this agent's role in one line (the technology or area, plus the mode if not `model`). Run `mw register --role "..."` (with `--mode` if needed). Read the **For other agents** section of each sibling Card, then tell the user in 3–5 lines what you already know from them, so the user can see the handoff worked.
+The context block says so. If it also shows **Operation Goal is empty** or **Learner model is empty**, handle those first. Agree the Goal with the user and write it. For the intake, ask what they already know and run `mw introduce intake "<Concept>" ...`: self-report starts at `seen`, never higher. If the role is already set, just confirm it. Otherwise ask the user for this agent's role in one line (the technology or area, plus the mode if not `model`). Run `mw register --role "..."` (with `--mode` if needed). Read the **For other agents** section of each sibling Card, then tell the user in 3–5 lines what you already know from them, so the user can see the handoff worked.
 
 ## 7. Models
 
@@ -75,7 +76,8 @@ When the user names a handle ("array searching 1", "AS1", "user data search"), r
 
 ## 9. Git
 
-- If the context block shows a **Setup** notice (`.venv` missing), run `mw setup` before running code or tests.
+- If the context block shows a **Setup** notice, do what it says: `mw setup` for a missing or stale `.venv`, or ask for the sibling's batch to be merged when the packages only exist on its branch.
+- The context block's **Sibling news** shows what siblings built or decided since their last checkpoint. Use it before climbing the ask ladder.
 
 - Code: one batch = one commit on this agent's branch. Merging into `main` is the user's call; offer it after each batch.
 - Vault: `mw commit-vault "<message>"` at checkpoints and after each batch's notes are written. It pushes only if the vault has a remote.
