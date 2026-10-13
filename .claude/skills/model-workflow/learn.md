@@ -8,11 +8,15 @@ If the context block lists concepts due for review, open with 2–3 quick questi
 
 ## Challenges, not answers
 
+If the context block lists **Open challenges**, ask how the learner is getting on with them before starting anything new. If nothing is due, offer a short quiz on never-checked concepts (`mw learner show --unchecked`): often these are concepts a Model-mode sibling taught whose PRIMM check never happened.
+
 New practice is a **Challenge** note in `.op/Challenges/`. Get the id from `mw next challenge` and use the template in `templates/Challenge.md`:
 
 - Size it from Learner: mostly `seen`/`ok` concepts, plus **one** new concept.
 - **Acceptance tests** the user can run themselves: inputs and expected outputs, or a pytest file you write. Tests aren't the solution.
 - Hints go in collapsed callouts, from vague to specific. Never put a solution there.
+- Register each concept the Challenge introduces: `mw learner set "<Concept>" --new --evidence "C00N introduced"`. `mw lint` flags any you missed.
+- The learner writes their code in `practice/c00n_<slug>.py` in this worktree. Commit it on this agent's branch as `C00N: attempt` (and again after fixes). Don't merge `practice/` into `main` unless the user asks.
 - When the user finishes, put the path to their code in `solution:`. Then review it, following the teacher skill's honesty rule, in `## Review`: what works, each problem with its line, and what to change. Don't write the fixed version.
 
 ## Explain-back gate

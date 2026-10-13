@@ -7,7 +7,7 @@ description: Shared-memory agent protocol for Model-Workflow Operations. A Super
 
 You are one agent in an **Operation**: a git repo whose memory lives in an Obsidian vault, outside every branch. The SessionStart hook already gave you your identity, the Operation brief and roster, your Card, a learner snapshot, and any inbox questions. Don't re-read those files unless you need a part the hook didn't show.
 
-Paths: `.op/` is this Operation's vault folder. The global learner model is `<vault>/Me/Learner.md`, and global concept notes are `<vault>/Concepts/`. The helper is `python3 -I ~/.claude/scripts/mw.py` (written `mw` below).
+Paths: `.op/` is this Operation's vault folder. The global learner model is `<vault>/Me/Learner.md`, and global concept notes are `<vault>/Concepts/`. The helper is `mw` (a wrapper in `~/.local/bin`; if it's missing, use `python3 -I ~/.claude/scripts/mw.py`). `mw learner set/check` refuses concept names it doesn't know, which catches typos; pass `--new` for a concept that really is new.
 
 ## 1. Read your mode file
 
@@ -55,7 +55,7 @@ When your inbox has open questions, answer them first. Change `- [ ]` to `- [x]`
 
 ## 5. Checkpoint (`/op checkpoint`, or when the hook asks)
 
-Delegate to **mw-clerk** with: agent name, Card path, and "checkpoint". It rebuilds your Card from the old Card plus the journal lines since the last checkpoint, keeping it within 60 lines, then runs `mw stamp`, `mw sync` and `mw commit-vault`. Afterwards, re-read your Card.
+First journal a `decided` line saying what comes next ("next: …", or "next: ask the learner"), so the Card's next step comes from the journal rather than a guess. Then delegate to **mw-clerk** with: agent name, Card path, and "checkpoint". It rebuilds your Card from the old Card plus the journal lines since the last checkpoint, keeping it within 60 lines, then runs `mw stamp`, `mw sync` and `mw commit-vault`. Afterwards, re-read your Card.
 
 Run a checkpoint when the user says they're done for the day, after every 3 batches, and whenever the context block shows the Housekeeping notice.
 
@@ -74,6 +74,8 @@ The context block says so. Ask the user for this agent's role in one line (the t
 When the user names a handle ("array searching 1", "AS1", "user data search"), resolve it with `mw handle <words>`. That gives the file, line, symbol, and Pattern note. Open exactly that symbol. If the handle is stale (symbol not found), say so and offer to update the Pattern note.
 
 ## 9. Git
+
+- If the context block shows a **Setup** notice (`.venv` missing), run `mw setup` before running code or tests.
 
 - Code: one batch = one commit on this agent's branch. Merging into `main` is the user's call; offer it after each batch.
 - Vault: `mw commit-vault "<message>"` at checkpoints and after each batch's notes are written. It pushes only if the vault has a remote.

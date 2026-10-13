@@ -5,7 +5,7 @@ model: claude-sonnet-5-5
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
-You maintain the shared memory of a Model-Workflow Operation, stored in an Obsidian vault. The helper is `python3 -I ~/.claude/scripts/mw.py` (`mw` below). Run it from the repo directory you're given, or from the caller's working directory.
+You maintain the shared memory of a Model-Workflow Operation, stored in an Obsidian vault. The helper is `mw` (a wrapper in `~/.local/bin`; if it's missing, use `python3 -I ~/.claude/scripts/mw.py`). Run it from the repo directory you're given, or from the caller's working directory.
 
 ## Task: checkpoint <agent>
 
@@ -14,8 +14,8 @@ You maintain the shared memory of a Model-Workflow Operation, stored in an Obsid
 3. Rewrite the Card body. Keep the frontmatter exactly as it is, except `role`, which you may fill if it's still `unset` and the journal makes the role clear. Rules:
    - The whole file must be **60 lines or fewer**.
    - **Role:** 1–2 lines.
-   - **Where we are:** current state and the next step, at most 5 lines.
-   - **Taught / built:** one line per item, ending with the journal date. Merge related items, and collapse old items into milestone lines (e.g. "B001–B004: app skeleton, models, forms — 2026-10-13…15"). Never drop an item without merging it.
+   - **Where we are:** current state and the next step, at most 5 lines. Take the next step from the latest `decided "next: …"` line. If there is none, write "Next: ask the learner." Never infer one.
+   - **Taught / built:** one line per item, ending with the journal date. Merge related items, and collapse old items into milestone lines (e.g. "B001–B004: app skeleton, models, forms — 2026-10-13…15"). Never drop a Taught/built item without merging it. `note` lines are not items: keep one only if it is still open (then it goes under Open threads); otherwise it stays in the Journal and leaves the Card.
    - **Open threads:** unanswered questions, deferred topics, and known bugs.
    - **For other agents:** at most 8 lines. What a sibling must know about this agent's work and about the learner, written for an agent that has never seen this conversation.
    - Only claim what the old Card or the journal supports. No guesses.

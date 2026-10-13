@@ -11,6 +11,7 @@ write prose, this script moves code, dates, and tables around.
 
 import argparse
 import datetime as dt
+import difflib
 import json
 import os
 import re
@@ -21,7 +22,7 @@ from pathlib import Path
 
 SKILL_DIR = Path.home() / ".claude/skills/model-workflow"
 DEFAULT_VAULT = Path.home() / "Documents/Model-Workflow"
-SCRIPT = "python3 -I ~/.claude/scripts/mw.py"
+SCRIPT = "mw" if shutil.which("mw") else "python3 -I ~/.claude/scripts/mw.py"
 
 CARD_MAX = 60
 OPERATION_MAX = 80
@@ -59,6 +60,10 @@ def git(*args, cwd=None, check=True):
 
 
 def repo_root(start=None):
+    if start is None:
+        logical = os.environ.get("PWD", "")
+        if "/.op/" in logical + "/" and Path(logical).resolve() == Path.cwd().resolve():
+            start = logical.split("/.op")[0]
     r = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=start or os.getcwd(),
                        capture_output=True, text=True)
     return Path(r.stdout.strip()) if r.returncode == 0 else None
@@ -283,12 +288,25 @@ def register(ctx, name=None, mode=None, role=None, quiet=False):
         set_fm(d / "Card.md", **upd)
     elif role:
         set_fm(d / "Card.md", role=json.dumps(role))
+    fill_role(d / "Card.md")
     write_if_missing(d / "Inbox.md", f"# Inbox · {name}\n\nQuestions from other agents. "
                      "`- [ ]` open, `- [x]` answered (answer after →).\n\n")
     sync(ctx.vault, ctx.op, ctx.root)
     if not quiet:
         print(f"registered agent '{name}' ({'new' if new else 'existing'}) → {d}")
     return name
+
+
+ROLE_PLACEHOLDER = "## Role\n_Not set yet._"
+
+
+def fill_role(card):
+    """Copy the frontmatter role into the body while the body still has the placeholder."""
+    fm, _ = read_fm(card)
+    role = str(fm.get("role", "")).strip()
+    text = card.read_text(encoding="utf-8")
+    if role and role != "unset" and ROLE_PLACEHOLDER in text:
+        card.write_text(text.replace(ROLE_PLACEHOLDER, f"## Role\n{role.rstrip('.')}."), encoding="utf-8")
 
 
 def cmd_register(a):
@@ -398,11 +416,48 @@ def add_evidence(r, ev):
     r["evidence"] = "; ".join((old + [ev])[-3:])
 
 
+def concept_names(vault):
+    """{lowercase name or alias: canonical note name} for every Concept note."""
+    names = {}
+    for c in (vault / "Concepts").glob("*.md"):
+        names[c.stem.lower()] = c.stem
+        al = read_fm(c)[0].get("aliases") or []
+        for x in ([al] if isinstance(al, str) else al):
+            names.setdefault(str(x).lower(), c.stem)
+    return names
+
+
+def resolve_concept(vault, items, name, allow_new):
+    """Canonical concept name; refuses unknown names unless allow_new, so typos don't fork entries."""
+    key = name.lower()
+    if key in items:
+        return items[key]["concept"]
+    notes = concept_names(vault)
+    if key in notes:
+        return notes[key]
+    if allow_new:
+        return name
+    pool = sorted({r["concept"] for r in items.values()} | set(notes.values()))
+    close = difflib.get_close_matches(name, pool, n=3, cutoff=0.6)
+    hint = f" Did you mean: {', '.join(close)}?" if close else ""
+    die(f"unknown concept '{name}' (not in Learner.md or Concepts/).{hint} "
+        "Use --new to add it as a new concept.")
+
+
+def checked(r):
+    return "✓" in r.get("evidence", "") or "✗" in r.get("evidence", "")
+
+
 def cmd_learner(a):
     vault = Ctx(need_agent=False).vault if repo_root() and (repo_root() / ".mw.json").exists() else DEFAULT_VAULT
     text, items = learner_load(vault)
     if a.action == "show":
         rows = sorted(items.values(), key=lambda r: r["concept"].lower())
+        if a.concept:
+            q = a.concept.lower()
+            rows = [r for r in rows if q in r["concept"].lower()]
+        if a.unchecked:
+            rows = [r for r in rows if not checked(r)]
         if a.due:
             rows = [r for r in rows if r.get("review", "9999") <= str(today())]
         for r in rows:
@@ -416,8 +471,10 @@ def cmd_learner(a):
         return
     if not a.concept:
         die("concept required")
-    key = a.concept.lower()
-    r = items.get(key) or {"concept": a.concept, "level": "new", "fade": "0", "streak": "0"}
+    name = resolve_concept(vault, items, a.concept, a.new)
+    key = name.lower()
+    r = items.get(key) or {"concept": name, "level": "new", "fade": "0", "streak": "0"}
+    note = ""
     if a.action == "set":
         if a.level:
             if a.level not in LEVELS:
@@ -431,7 +488,10 @@ def cmd_learner(a):
         if a.result not in ("pass", "fail"):
             die("result must be pass or fail")
         lvl, fade, streak = LEVELS.index(r["level"]), int(r["fade"]), int(r["streak"])
-        if a.result == "pass":
+        if a.result == "pass" and streak > 0 and str(today()) < r.get("review", ""):
+            # spaced retrieval: a second pass only counts once the review date has come
+            note = f"\n(pass recorded; streak counts again from {r['review']})"
+        elif a.result == "pass":
             streak += 1
             if streak >= 2:
                 lvl, fade, streak = min(lvl + 1, 3), min(fade + 1, 3), 0
@@ -439,10 +499,11 @@ def cmd_learner(a):
             lvl, fade, streak = max(lvl - 1, 0), max(fade - 1, 0), 0
         r.update(level=LEVELS[lvl], fade=str(fade), streak=str(streak))
         add_evidence(r, f"{a.evidence or 'check'} {'✓' if a.result == 'pass' else '✗'} ({today()})")
-        schedule(r)
+        if not note:
+            schedule(r)
     items[key] = r
     learner_save(vault, text, items)
-    print(learner_line(r)[2:])
+    print(learner_line(r)[2:] + note)
 
 
 # ---------- roster / map / index ----------
@@ -456,6 +517,7 @@ def sync(vault, op, repo):
 def roster(op):
     rows = []
     for card in sorted((op / "Agents").glob("*/Card.md")):
+        fill_role(card)
         fm, _ = read_fm(card)
         name = fm.get("agent", card.parent.name)
         rel = card.relative_to(op.parent.parent).with_suffix("").as_posix()
@@ -714,6 +776,40 @@ def open_inbox(agent_dir):
     return [l for l in p.read_text(encoding="utf-8").splitlines() if l.startswith("- [ ]")] if p.exists() else []
 
 
+def open_challenges(op, agent=None):
+    out = []
+    for p in sorted((op / "Challenges").glob("*.md")):
+        fm, _ = read_fm(p)
+        if fm.get("status", "open") == "open" and (agent is None or fm.get("agent") == agent):
+            out.append(p.stem)
+    return out
+
+
+def venv_missing(root):
+    return (root / "requirements.txt").exists() and not (root / ".venv").exists()
+
+
+def setup_commands(root):
+    p = root / ".superset" / "config.json"
+    return json.loads(p.read_text()).get("setup", []) if p.exists() else []
+
+
+def cmd_setup(a):
+    root = repo_root()
+    if not root:
+        die("not in a git repo")
+    for c in setup_commands(root):
+        print(f"$ {c}")
+        r = subprocess.run(c, shell=True, cwd=root)
+        if r.returncode != 0:
+            die(f"setup step failed ({r.returncode}): {c}")
+    print("setup done")
+
+
+def vault_has_remote(vault):
+    return bool(git("remote", cwd=vault, check=False).strip())
+
+
 # ---------- checkpoint / vault commit ----------
 
 def cmd_stamp(a):
@@ -798,6 +894,17 @@ def cmd_context(a):
            "levels: " + " · ".join(f"{lv} {counts[lv]}" for lv in LEVELS),
            "due for review: " + (", ".join(f"{r['concept']} ({r['level']})" for r in due[:10]) or "none"),
            "recent: " + (", ".join(f"{r['concept']} ({r['level']}, fade {r['fade']})" for r in recent) or "none")]
+    unchecked = sorted((r["concept"] for r in learner.values() if not checked(r)), key=str.lower)
+    if unchecked:
+        out += [f"never checked ({len(unchecked)}; taught but not verified): " + ", ".join(unchecked[:10])
+                + (" …" if len(unchecked) > 10 else "")]
+    chal = open_challenges(ctx.op, ctx.agent)
+    if chal:
+        out += ["", "## Open challenges (yours): " + ", ".join(chal)
+                + " — ask how the learner is getting on before starting anything new"]
+    if venv_missing(ctx.root):
+        out += ["", "## Setup: requirements.txt exists but .venv doesn't",
+                f"Run `{SCRIPT} setup` (re-runs .superset/config.json setup) before running code or tests."]
     if inbox:
         out += ["", f"## Inbox: {len(inbox)} open question(s) from other agents — answer them first",
                 *inbox[:10]]
@@ -858,6 +965,13 @@ def cmd_status(a):
     print(f"\nLearner: {len(learner)} concepts; due for review: {', '.join(due) or 'none'}")
     print(f"Batches: {len(list((ctx.op / 'Batches').glob('*.md')))} · "
           f"Patterns: {len(patterns(ctx.op))} · Decisions: {len(list((ctx.op / 'Decisions').glob('*.md')))}")
+    chal = open_challenges(ctx.op)
+    if chal:
+        print(f"Open challenges: {', '.join(chal)}")
+    if not vault_has_remote(ctx.vault):
+        print(f"WARNING: vault {ctx.vault} has no git remote; commit-vault only commits locally (no backup)")
+    if venv_missing(ctx.root):
+        print(f"WARNING: .venv missing in this worktree; run `{SCRIPT} setup`")
 
 
 def all_note_names(vault):
@@ -906,6 +1020,22 @@ def cmd_lint(a):
             t = link.strip().rstrip("\\").lower()
             if t and t not in names:
                 issues.append(f"{rel}: broken link [[{link.strip()}]]")
+    _, learner = learner_load(ctx.vault)
+    for folder in ("Batches", "Challenges"):
+        for p in sorted((ctx.op / folder).glob("*.md")):
+            cs = read_fm(p)[0].get("concepts") or []
+            for c in ([cs] if isinstance(cs, str) else cs):
+                c = re.sub(r"^\[\[|\]\]$", "", str(c)).split("|")[0].strip()
+                if c and c.lower() not in learner:
+                    issues.append(f"{folder}/{p.stem}: concept [[{c}]] not in Learner.md "
+                                  f"→ mw learner set \"{c}\" --new --evidence \"{p.stem[:4]} introduced\"")
+    for card in sorted((ctx.op / "Agents").glob("*/Card.md")):
+        if ROLE_PLACEHOLDER in card.read_text(encoding="utf-8"):
+            has = str(read_fm(card)[0].get("role", "unset")) not in ("", "unset")
+            issues.append(f"{card.parent.name}/Card.md: Role section empty → "
+                          + ("mw sync (copies it from frontmatter)" if has else 'mw register --role "..."'))
+    if not vault_has_remote(ctx.vault):
+        issues.append("vault has no git remote: commit-vault never backs it up")
     for p, fm in patterns(ctx.op):
         status, loc = handle_location(ctx.root, fm)
         if status == "stale":
@@ -951,6 +1081,8 @@ def main():
     p.add_argument("--fade", type=int)
     p.add_argument("--evidence")
     p.add_argument("--due", action="store_true")
+    p.add_argument("--unchecked", action="store_true", help="show: only concepts never checked")
+    p.add_argument("--new", action="store_true", help="set/check: allow a concept not seen before")
     p.set_defaults(f=cmd_learner)
 
     p = sp.add_parser("batch-info", help="files, changed lines and numbered code of a commit")
@@ -979,6 +1111,7 @@ def main():
     sp.add_parser("sync", help="regenerate roster, Map handles, concept Index").set_defaults(f=cmd_sync)
     sp.add_parser("stamp", help="mark this agent's Card as checkpointed now").set_defaults(f=cmd_stamp)
     sp.add_parser("status", help="operation overview").set_defaults(f=cmd_status)
+    sp.add_parser("setup", help="re-run this repo's .superset/config.json setup (venv etc.)").set_defaults(f=cmd_setup)
 
     p = sp.add_parser("commit-vault", help="commit (and push, if a remote exists) the vault")
     p.add_argument("message")
