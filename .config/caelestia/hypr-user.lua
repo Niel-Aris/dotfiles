@@ -38,3 +38,20 @@ end
 
 zen_tab_button("mouse:276", "Page_Up")
 zen_tab_button("mouse:275", "Page_Down")
+
+-- Fuzzel: close when left-clicking anywhere outside it (wallpaper, windows, bar).
+-- Non-consuming, so the click still reaches whatever is under the cursor.
+hl.bind("mouse:272", function()
+    local layers = hl.get_layers({ namespace = "launcher" })
+    if not layers or #layers == 0 then return end
+
+    local pos = hl.get_cursor_pos()
+    if not pos then return end
+
+    for _, l in ipairs(layers) do
+        if pos.x >= l.x and pos.x < l.x + l.w and pos.y >= l.y and pos.y < l.y + l.h then
+            return
+        end
+    end
+    hl.exec_cmd("pkill -x fuzzel")
+end, { non_consuming = true })
