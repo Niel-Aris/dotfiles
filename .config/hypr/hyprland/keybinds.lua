@@ -160,7 +160,7 @@ create_bind(vars.kbAudioSettings, hl.dsp.exec_cmd(vars.audioSettings))
 -- Vim cheatsheet (floating terminal, press q to close)
 create_bind(
     "SUPER + slash",
-    hl.dsp.exec_cmd("foot --app-id=vim-cheatsheet --title='Vim Cheatsheet' vim -R -c 'set ft=markdown nonumber norelativenumber nolist' -c 'nnoremap <buffer> q :qa!<CR>' ~/.vim/cheatsheet.md")
+    hl.dsp.exec_cmd("kitty --class vim-cheatsheet --title 'Vim Cheatsheet' vim -R -c 'set ft=markdown nonumber norelativenumber nolist' -c 'nnoremap <buffer> q :qa!<CR>' ~/.vim/cheatsheet.md")
 )
 
 -- Utilities
