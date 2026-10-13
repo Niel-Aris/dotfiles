@@ -46,3 +46,6 @@ if status is-interactive
 end
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
+
+# Superset CLI (normally only on PATH inside Superset terminals)
+fish_add_path --global --path ~/.superset/bin
