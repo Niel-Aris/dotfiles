@@ -13,6 +13,7 @@ base-devel
 bash-completion
 bat
 bind
+blender
 bluedevil
 bluez
 bluez-hid2hci
@@ -272,5 +273,6 @@ xl2tpd
 xsettingsd
 yay
 ydotool
+yt-dlp
 zen-browser-bin
 zoxide
