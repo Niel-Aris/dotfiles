@@ -236,6 +236,7 @@ starship
 sticky
 sudo
 sysfsutils
+telegram-desktop
 tesseract-data-eng
 texinfo
 trash-cli
@@ -259,6 +260,7 @@ vlc-plugins-all
 vulkan-icd-loader
 vulkan-radeon
 waybar
+webkitgtk-6.0
 wget
 which
 wireplumber
